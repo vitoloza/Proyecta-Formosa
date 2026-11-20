@@ -6,7 +6,7 @@
   window.PFIMM = true;
 
   var params = new URLSearchParams(location.search);
-  var VALID = ["new", "ped", "lib", "mine", "cal", "dc", "int"];
+  var VALID = ["new", "ped", "rec", "lib", "mine", "cal", "dc", "int"];
   var startTab = params.get("tab");
   var RMQ = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : null;
   var reduce = !!(RMQ && RMQ.matches);
@@ -108,13 +108,14 @@
     cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h2M14 14h2M8 17h2"/>',
     dc: '<path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/>',
     int: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+    rec: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/>',
     map: '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/>',
     page: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/>',
     ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
     cald: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>'
   };
   var SECTIONS = [
-    ["new", "Crear proyecto"], ["ped", "Planificación en Word"], ["lib", "Biblioteca"], ["mine", "Mis proyectos"],
+    ["new", "Crear proyecto"], ["ped", "Planificación en Word"], ["rec", "Recursos didácticos"], ["lib", "Biblioteca"], ["mine", "Mis proyectos"],
     ["cal", "Calendario"], ["dc", "Diseño Curricular"], ["int", "Intensificación"]
   ];
   function secName(k) { for (var i = 0; i < SECTIONS.length; i++) if (SECTIONS[i][0] === k) return SECTIONS[i][1]; return "ProyectaFormosa"; }
