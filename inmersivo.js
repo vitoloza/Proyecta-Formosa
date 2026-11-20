@@ -217,12 +217,12 @@
       '<span class="pill">' + svg(IC.cald, 18) + '<span id="pf-mo"></span></span></div>' +
       '<div id="pf-bot"><div id="pf-mid"><div id="pf-leg" class="pf-card"><div class="ch">' +
       '<span style="--c:' + COL.ok + '"><i></i>Completo</span><span style="--c:' + COL.mid + '"><i></i>Parcial</span><span style="--c:' + COL.no + '"><i></i>Sin calendario</span><span style="--c:' + COL.tool + '"><i></i>Herramienta</span></div>' +
-      "<p><span class=\"lg\">Color: calendario del área. Número: proyectos de la biblioteca más los tuyos. </span>Los proyectos son borradores para revisar. El mapa es ilustrativo.</p></div>" +
+      "<p><span class=\"lg\">Color: calendario del área. Libros y número: proyectos de la biblioteca más los tuyos. </span>Los proyectos son borradores para revisar. El mapa es ilustrativo.</p></div>" +
       '<button id="pf-dud" type="button"><img src="' + LOGO + '" alt="">¿Dudas?</button></div>' +
       '<nav id="pf-bar" aria-label="Secciones">' + bar + "</nav></div>" +
       '<section id="pf-fi" class="pf-card" hidden aria-live="polite"></section>' +
       '<section id="pf-help" class="pf-card" hidden><button class="pf-x" type="button" data-x="help" aria-label="Cerrar">✕</button><h3>Cómo moverte</h3><ul>' +
-      "<li><b>Girar:</b> arrastrá con el dedo o el mouse.</li><li><b>Acercar:</b> rueda del mouse o pellizcá con dos dedos.</li><li><b>Ver un área:</b> tocá su cartel o sus edificios.</li><li><b>Abrir una sección:</b> usá los botones de abajo; se abre encima del mapa.</li></ul>" +
+      "<li><b>Girar:</b> arrastrá con el dedo o el mouse.</li><li><b>Acercar:</b> rueda del mouse o pellizcá con dos dedos.</li><li><b>Ver un área:</b> tocá su cartel o su aula. La pila de libros muestra cuántos proyectos tiene.</li><li><b>Abrir una sección:</b> usá los botones de abajo; se abre encima del mapa.</li></ul>" +
       "<p><b>Colores</b> según el calendario del área: verde completo, amarillo parcial, gris sin calendario. Lo celeste son herramientas.</p><p><b>Número</b> de cada cartel: proyectos de la biblioteca más los tuyos.</p></section>" +
       '<div id="pf-scrim"></div>' +
       '<aside id="pf-panel" aria-label="Sección" aria-hidden="true"><div id="pf-ph"><button type="button" id="pf-pc" aria-label="Cerrar panel">✕ Cerrar</button><b id="pf-pt">Sección</b>' +
@@ -307,8 +307,8 @@
 
   /* ---------- escena 3D (canvas, liviana) ---------- */
   var cv, ctx, W = 0, H = 0, DPR = 1, raf = 0, lastT = 0, idleAt = 0, lbLayer;
-  var cam = { yaw: -0.55, pitch: 0.98, dist: 40, fov: 0.9, tx: 0, tz: 1 };
-  var boxes = [], sprites = [], zones = [], tools = [], labels = [], hot = null, river = null, spr = {};
+  var cam = { yaw: -0.4, pitch: 1.0, dist: 50, fov: 0.9, tx: 0, tz: 4 };
+  var boxes = [], sprites = [], zones = [], tools = [], labels = [], rooms = [], hot = null, river = null, spr = {};
 
   function rnd(seed) { var s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
   function hexA(hex, a) { var n = parseInt(hex.slice(1), 16); return "rgba(" + (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }
@@ -341,43 +341,77 @@
 
   function buildScene() {
     if (!S) S = stats();
-    boxes = []; sprites = []; zones = []; tools = [];
-    var R = rnd(7);
-    // decorado: árboles, libros, lamparitas (como InstancedMesh: muchas copias del mismo dibujo)
-    for (var i = 0; i < 42; i++) {
-      var ang = R() * 6.283, rad = 6 + R() * 17, x = Math.cos(ang) * rad, z = Math.sin(ang) * rad * 0.9;
-      if (z > 11 && z < 19) continue;
-      sprites.push({ x: x, y: 0, z: z, img: i % 3 === 0 ? spr.book : i % 3 === 1 ? spr.tree : spr.bulb, s: i % 3 === 1 ? 1.9 : 1.3, lift: i % 3 === 2 ? 1.6 : 0 });
-    }
-    // zonas: una por área del Diseño Curricular
-    AREAS.forEach(function (a, k) {
-      var th = (k / AREAS.length) * 6.283 - 1.96, zx = Math.cos(th) * 11.5, zz = Math.sin(th) * 9.5 - 0.5;
-      var A = S.areas[a], col = COL[A.status], Rz = rnd(31 + k * 17);
-      var top = 0, n = 6;
-      for (var j = 0; j < n; j++) {
-        var bx = zx + (Rz() - .5) * 4.6, bz = zz + (Rz() - .5) * 4.2;
-        var hh = j === 0 ? 1.4 + Math.min(A.total, 12) * 0.38 : 0.6 + Rz() * (0.9 + Math.min(A.total, 12) * 0.12);
-        if (j === 0) { bx = zx; bz = zz; }
-        boxes.push({ x: bx, z: bz, w: j === 0 ? 1.7 : 0.9 + Rz() * 0.7, d: j === 0 ? 1.7 : 0.9 + Rz() * 0.7, h: hh, col: col, zone: k });
-        top = Math.max(top, hh);
+    boxes = []; sprites = []; zones = []; tools = []; rooms = []; river = null;
+    var WH = 1.3, TH = 0.25;
+    // aula: piso, paredes con puerta, pizarrón, bancos y una pila de libros (un libro por proyecto)
+    function room(cx, cz, w, d, door, col, opt) {
+      opt = opt || {};
+      var x0 = cx - w / 2, x1 = cx + w / 2, z0 = cz - d / 2, z1 = cz + d / 2;
+      rooms.push({ x0: x0, x1: x1, z0: z0, z1: z1, col: col });
+      function wall(ax, az, bx, bz) { // pared entre dos puntos (horizontal o vertical)
+        var horiz = Math.abs(az - bz) < 1e-6, len = horiz ? Math.abs(bx - ax) : Math.abs(bz - az);
+        if (len < 0.05) return;
+        boxes.push({ x: (ax + bx) / 2, z: (az + bz) / 2, w: horiz ? len : TH, d: horiz ? TH : len, h: WH, col: col, wall: 1 });
       }
-      for (var m = 0; m < Math.min(A.mine, 6); m++) boxes.push({ x: zx - 2.4 + m * 0.95, z: zz + 2.7, w: 0.7, d: 0.7, h: 0.55, col: "#f9a8d4", zone: k, mine: 1 });
-      zones.push({ area: a, x: zx, z: zz, top: top, col: col, k: k });
-    });
-    // herramientas (celeste)
-    [["ped", "Planificación en Word", -4.2, 5.6], ["int", "Intensificación", 4.6, -5.4]].forEach(function (t) {
-      boxes.push({ x: t[2], z: t[3], w: 1.1, d: 1.1, h: 2.6, col: COL.tool, tool: t[0] });
-      tools.push({ sec: t[0], name: t[1], x: t[2], z: t[3], top: 2.6 });
-    });
-    hot = { x: 0, z: 1, top: 5.5 };
-    // río
-    var pts = [[-30, 16], [-18, 13.5], [-8, 16.5], [3, 13.8], [13, 16.8], [22, 14], [30, 16.5]], cl = [];
-    for (var s = 0; s < pts.length - 1; s++) for (var t2 = 0; t2 < 1; t2 += 0.125) {
-      var p0 = pts[Math.max(0, s - 1)], p1 = pts[s], p2 = pts[s + 1], p3 = pts[Math.min(pts.length - 1, s + 2)], tt = t2, t3 = tt * tt * tt, t22 = tt * tt;
-      cl.push([0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * tt + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t22 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3), 0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * tt + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t22 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)]);
+      var g = 1.7; // puerta
+      var sides = { n: [x0, z0, x1, z0], s: [x0, z1, x1, z1], w: [x0, z0, x0, z1], e: [x1, z0, x1, z1] };
+      Object.keys(sides).forEach(function (k) {
+        var s = sides[k];
+        if (k !== door) { wall(s[0], s[1], s[2], s[3]); return; }
+        if (k === "n" || k === "s") { var mx = cx + w * 0.18; wall(s[0], s[1], mx - g / 2, s[3]); wall(mx + g / 2, s[1], s[2], s[3]); }
+        else { var mz = cz + d * 0.18; wall(s[0], s[1], s[2], mz - g / 2); wall(s[0], mz + g / 2, s[2], s[3]); }
+      });
+      // pizarrón en la pared opuesta a la puerta y bancos mirando hacia él
+      var opp = { n: "s", s: "n", w: "e", e: "w" }[door], bw = Math.min(w, d) * 0.45;
+      var B = { n: [cx, z0 + 0.22, bw, 0.08], s: [cx, z1 - 0.22, bw, 0.08], w: [x0 + 0.22, cz, 0.08, bw], e: [x1 - 0.22, cz, 0.08, bw] }[opp];
+      boxes.push({ x: B[0], z: B[1], w: B[2], d: B[3], h: 0.75, y0: 0.45, col: "#7dd3a8", fc: "#14532d" });
+      var vert = (door === "n" || door === "s");
+      for (var r = 0; r < 2; r++) for (var c = 0; c < 3; c++) {
+        var u = (c - 1) * (vert ? w : d) * 0.24, v = (r === 0 ? 0.05 : 0.27) * (vert ? d : w) * (opp === "n" || opp === "w" ? 1 : -1);
+        var dx = vert ? u : v, dz = vert ? v : u;
+        boxes.push({ x: cx + dx, z: cz + dz, w: vert ? 1.0 : 0.6, d: vert ? 0.6 : 1.0, h: 0.5, col: "#e8c99b", fc: "#a07850" });
+      }
+      // pila de libros en una esquina
+      var top = WH, n = opt.books || 0, mineN = opt.mine || 0;
+      var sx = { n: x0 + 1.0, s: x1 - 1.0, w: x1 - 1.0, e: x0 + 1.0 }[door], sz = { n: z1 - 0.9, s: z0 + 0.9, w: z1 - 1.0, e: z1 - 1.0 }[door];
+      var BC = ["#f9a8d4", "#a7f3d0", "#fde68a", "#bae6fd", "#ddd6fe"];
+      for (var i = 0; i < n; i++) {
+        var isMine = i >= n - mineN;
+        boxes.push({ x: sx + ((i * 37) % 7 - 3) * 0.025, z: sz + ((i * 53) % 5 - 2) * 0.03, w: 0.95, d: 0.66, h: 0.2, y0: i * 0.2, col: isMine ? "#f472b6" : col, fc: isMine ? "#be185d" : BC[i % BC.length], book: 1 });
+        top = Math.max(top, (i + 1) * 0.2);
+      }
+      return top;
     }
-    cl.push(pts[pts.length - 1]);
-    river = cl;
+    // ubicación de las aulas: ala norte (4), ala oeste (2), ala este (2)
+    var SLOTS = [
+      [-12.75, -12, 8, 7, "s"], [-4.25, -12, 8, 7, "s"], [4.25, -12, 8, 7, "s"], [12.75, -12, 8, 7, "s"],
+      [-17.5, -2.5, 7, 7.5, "e"], [-17.5, 5.5, 7, 7.5, "e"], [17.5, -2.5, 7, 7.5, "w"], [17.5, 5.5, 7, 7.5, "w"]
+    ];
+    AREAS.forEach(function (a, k) {
+      var A = S.areas[a], col = COL[A.status], sl = SLOTS[k % SLOTS.length];
+      var top = room(sl[0], sl[1], sl[2], sl[3], sl[4], col, { books: Math.min(A.total, 12), mine: Math.min(A.mine, 6) });
+      zones.push({ area: a, x: sl[0], z: sl[1], top: top + 0.4, col: col, k: k });
+    });
+    // salas de herramientas junto a la entrada
+    [["ped", "Planificación en Word", -13, 13.5], ["int", "Intensificación", 13, 13.5]].forEach(function (t) {
+      room(t[2], t[3], 8, 5, "n", COL.tool, {});
+      tools.push({ sec: t[0], name: t[1], x: t[2], z: t[3], top: WH + 0.4 });
+    });
+    // portón de entrada
+    [-3.1, 3.1].forEach(function (x) { boxes.push({ x: x, z: 17, w: 0.6, d: 0.6, h: 2.6, col: COL.tool }); });
+    boxes.push({ x: 0, z: 17, w: 6.8, d: 0.5, h: 0.4, y0: 2.6, col: COL.tool });
+    // mástil con la bandera
+    boxes.push({ x: 0, z: -4.5, w: 0.16, d: 0.16, h: 5.2, col: "#e2e8f0", fc: "#cbd5e1" });
+    ["#74acdf", "#ffffff", "#74acdf"].forEach(function (c, i) { boxes.push({ x: 0.85, z: -4.5, w: 1.5, d: 0.05, h: 0.28, y0: 4.85 - i * 0.28, col: c, fc: c, flag: 1 }); });
+    // bancos del patio
+    [[-9, 3], [9, 3]].forEach(function (p) { boxes.push({ x: p[0], z: p[1], w: 0.7, d: 2.4, h: 0.45, col: "#e8c99b", fc: "#8b5e34" }); });
+    // árboles del patio y de la vereda
+    [[-10.3, -5], [10.3, -5], [-10.3, 9], [10.3, 9], [-7, 19.5], [7, 19.5], [-15, 19.5], [15, 19.5], [-23.5, -8], [23.5, -8], [-23.5, 6], [23.5, 6]].forEach(function (p) {
+      sprites.push({ x: p[0], y: 0, z: p[1], img: spr.tree, s: 2.2, lift: 0 });
+    });
+    // lamparitas de ideas sobre el patio
+    [[-6, -2], [6, -2], [-6, 7], [6, 7]].forEach(function (p) { sprites.push({ x: p[0], y: 0, z: p[1], img: spr.bulb, s: 1.2, lift: 3.2 }); });
+    hot = { x: 0, z: 2, top: 5.5 };
     buildLabels();
   }
 
@@ -418,67 +452,70 @@
     g.addColorStop(0, "#0b1e3a"); g.addColorStop(1, "#030814");
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     ctx.lineWidth = 1;
-    for (var v = -28; v <= 28; v += 2) {
-      var major = v % 6 === 0;
-      ctx.strokeStyle = major ? "rgba(34,211,238,.20)" : "rgba(34,211,238,.07)";
-      var a = P(v, 0, -28), b = P(v, 0, 28), c = P(-28, 0, v), d = P(28, 0, v);
+    for (var v = -30; v <= 30; v += 2) {
+      ctx.strokeStyle = v % 6 === 0 ? "rgba(34,211,238,.10)" : "rgba(34,211,238,.04)";
+      var a = P(v, 0, -30), b = P(v, 0, 30), c = P(-30, 0, v), d = P(30, 0, v);
       if (a && b) { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
       if (c && d) { ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.stroke(); }
     }
-    // manzanas ilustrativas
-    ctx.strokeStyle = "rgba(125,211,252,.10)";
-    for (var bx = -24; bx < 24; bx += 6) for (var bz = -24; bz < 12; bz += 6) {
-      var q = [P(bx + .6, 0, bz + .6), P(bx + 5.4, 0, bz + .6), P(bx + 5.4, 0, bz + 5.4), P(bx + .6, 0, bz + 5.4)];
-      if (q[0] && q[1] && q[2] && q[3]) { poly(q); ctx.stroke(); }
+    function quad(x0, z0, x1, z1, fill, stroke, lw, dash) {
+      var q = [P(x0, 0, z0), P(x1, 0, z0), P(x1, 0, z1), P(x0, 0, z1)];
+      if (!q[0] || !q[1] || !q[2] || !q[3]) return;
+      poly(q);
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; if (dash) ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]); }
     }
-    // anillos tipo radar
-    [8, 15, 22].forEach(function (r, i) {
-      ctx.strokeStyle = "rgba(34,211,238," + (0.16 - i * 0.04) + ")"; ctx.lineWidth = 1.5; ctx.beginPath(); var first = true;
-      for (var a2 = 0; a2 <= 64; a2++) { var p = P(cam.tx + Math.cos(a2 / 64 * 6.283) * r, 0, cam.tz + Math.sin(a2 / 64 * 6.283) * r); if (!p) { first = true; continue; } if (first) { ctx.moveTo(p[0], p[1]); first = false; } else ctx.lineTo(p[0], p[1]); }
-      ctx.stroke();
-    });
-    // río
-    if (river) {
-      var L = [], Rr = [];
-      for (var i2 = 0; i2 < river.length; i2++) {
-        var p0 = river[Math.max(0, i2 - 1)], p1 = river[Math.min(river.length - 1, i2 + 1)], dx = p1[0] - p0[0], dz = p1[1] - p0[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l * 1.6, nz = dx / l * 1.6;
-        var A1 = P(river[i2][0] + nx, 0, river[i2][1] + nz), B1 = P(river[i2][0] - nx, 0, river[i2][1] - nz);
-        if (A1 && B1) { L.push(A1); Rr.push(B1); }
+    function line(x0, z0, x1, z1, col, lw) { var a = P(x0, 0, z0), b = P(x1, 0, z1); if (!a || !b) return; ctx.strokeStyle = col; ctx.lineWidth = lw || 1.5; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+    function circle(cx, cz, r, col, lw) { ctx.strokeStyle = col; ctx.lineWidth = lw || 1.5; ctx.beginPath(); var f = true; for (var i = 0; i <= 48; i++) { var p = P(cx + Math.cos(i / 48 * 6.283) * r, 0, cz + Math.sin(i / 48 * 6.283) * r); if (!p) { f = true; continue; } if (f) { ctx.moveTo(p[0], p[1]); f = false; } else ctx.lineTo(p[0], p[1]); } ctx.stroke(); }
+    // terreno de la escuela y vereda
+    quad(-26, 17.4, 26, 21.5, "rgba(148,163,184,.10)", null);
+    quad(-22, -17, 22, 17, "rgba(10,28,56,.92)", "rgba(34,211,238,.45)", 2);
+    // galerías (pasillos techados)
+    quad(-22, -8.5, 22, -6.5, "rgba(148,163,184,.14)", "rgba(148,163,184,.25)", 1, [6, 6]);
+    quad(-14, -6.5, -12, 10, "rgba(148,163,184,.14)", "rgba(148,163,184,.25)", 1, [6, 6]);
+    quad(12, -6.5, 14, 10, "rgba(148,163,184,.14)", "rgba(148,163,184,.25)", 1, [6, 6]);
+    // patio con cancha pintada
+    quad(-12, -6.5, 12, 10, "rgba(30,64,110,.55)", "rgba(125,211,252,.25)", 1);
+    quad(-8.5, -3.2, 8.5, 9.2, null, "rgba(103,232,249,.45)", 1.6);
+    line(-8.5, 3, 8.5, 3, "rgba(103,232,249,.45)", 1.6);
+    circle(0, 3, 2.2, "rgba(249,168,212,.55)", 1.8);
+    quad(-2.6, -3.2, 2.6, -1.4, null, "rgba(103,232,249,.35)", 1.2);
+    quad(-2.6, 7.4, 2.6, 9.2, null, "rgba(103,232,249,.35)", 1.2);
+    // camino de la entrada
+    quad(-2.6, 10, 2.6, 17, "rgba(148,163,184,.16)", "rgba(148,163,184,.3)", 1);
+    // pisos de las aulas (color según el calendario)
+    rooms.forEach(function (r) { quad(r.x0, r.z0, r.x1, r.z1, hexA(r.col, .14), hexA(r.col, .35), 1); });
+    // reja perimetral con el portón abierto
+    ctx.strokeStyle = "rgba(125,211,252,.35)"; ctx.lineWidth = 1;
+    function fence(x0, z0, x1, z1) {
+      var L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / 1.6)), top = [];
+      for (var i = 0; i <= n; i++) {
+        var x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n, a = P(x, 0, z), b = P(x, 0.9, z);
+        if (!a || !b) continue; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); top.push(b);
       }
-      if (L.length > 2) {
-        ctx.beginPath(); ctx.moveTo(L[0][0], L[0][1]); L.forEach(function (p) { ctx.lineTo(p[0], p[1]); }); for (var j = Rr.length - 1; j >= 0; j--) ctx.lineTo(Rr[j][0], Rr[j][1]); ctx.closePath();
-        ctx.fillStyle = "rgba(14,72,130,.55)"; ctx.fill();
-        ctx.strokeStyle = "rgba(56,189,248,.55)"; ctx.lineWidth = 1.5;
-        [L, Rr].forEach(function (side) { ctx.beginPath(); ctx.moveTo(side[0][0], side[0][1]); side.forEach(function (p) { ctx.lineTo(p[0], p[1]); }); ctx.stroke(); });
-        // brillo del agua
-        if (!reduce) { ctx.strokeStyle = "rgba(186,230,253,.25)"; ctx.setLineDash([6, 18]); ctx.lineDashOffset = -t * 0.02; ctx.beginPath(); var f2 = true; river.forEach(function (rp) { var pp = P(rp[0], 0, rp[1]); if (!pp) return; if (f2) { ctx.moveTo(pp[0], pp[1]); f2 = false; } else ctx.lineTo(pp[0], pp[1]); }); ctx.stroke(); ctx.setLineDash([]); }
-        // nombre del río sobre el agua
-        var word = "RÍO BERMEJO", startI = Math.floor(river.length * 0.36);
-        for (var c2 = 0; c2 < word.length; c2++) {
-          var idx = Math.min(river.length - 2, startI + c2), a3 = P(river[idx][0], 0, river[idx][1]), b3 = P(river[idx + 1][0], 0, river[idx + 1][1]);
-          if (!a3 || !b3 || word[c2] === " ") continue;
-          ctx.save(); ctx.translate(a3[0], a3[1]); ctx.rotate(Math.atan2(b3[1] - a3[1], b3[0] - a3[0])); ctx.scale(1, C.sp * 0.9 + 0.1);
-          ctx.fillStyle = "rgba(186,230,253,.55)"; ctx.font = "800 " + Math.max(9, a3[3] * 1.5).toFixed(1) + "px ui-sans-serif,system-ui,sans-serif"; ctx.textAlign = "center"; ctx.fillText(word[c2], 0, 0); ctx.restore();
-        }
-      }
+      if (top.length > 1) { ctx.beginPath(); ctx.moveTo(top[0][0], top[0][1]); top.forEach(function (p) { ctx.lineTo(p[0], p[1]); }); ctx.stroke(); }
     }
-    // resplandor bajo cada zona
+    fence(-22, -17, 22, -17); fence(-22, -17, -22, 17); fence(22, -17, 22, 17); fence(-22, 17, -3.4, 17); fence(3.4, 17, 22, 17);
+    // nombre en el piso de la entrada
+    var p0 = P(0, 0, 19.5);
+    if (p0) { ctx.save(); ctx.translate(p0[0], p0[1]); ctx.scale(1, C.sp * 0.9 + 0.1); ctx.fillStyle = "rgba(186,230,253,.55)"; ctx.font = "800 " + Math.max(9, p0[3] * 1.1).toFixed(1) + "px ui-sans-serif,system-ui,sans-serif"; ctx.textAlign = "center"; ctx.fillText("ESCUELA · PROYECTA FORMOSA", 0, 0); ctx.restore(); }
+    // resplandor en cada aula
     function g2(x, z, img, s) { var p = P(x, 0, z); if (!p) return; var w = s * p[3]; ctx.drawImage(img, p[0] - w / 2, p[1] - w * C.sp / 2, w, w * C.sp); }
-    zones.forEach(function (z) { g2(z.x, z.z, spr["g" + S.areas[z.area].status], 9); });
-    tools.forEach(function (tl) { g2(tl.x, tl.z, spr.gtool, 5); });
+    zones.forEach(function (z) { g2(z.x, z.z, spr["g" + S.areas[z.area].status], 8); });
+    tools.forEach(function (tl) { g2(tl.x, tl.z, spr.gtool, 6); });
   }
 
   var LX = 0.45, LZ = -0.89;
   function drawObjects(t) {
     var items = [];
     boxes.forEach(function (b) {
-      var x0 = b.x - b.w / 2, x1 = b.x + b.w / 2, z0 = b.z - b.d / 2, z1 = b.z + b.d / 2, hh = b.h;
+      var x0 = b.x - b.w / 2, x1 = b.x + b.w / 2, z0 = b.z - b.d / 2, z1 = b.z + b.d / 2, y0 = b.y0 || 0, hh = y0 + b.h;
       var faces = [
         { n: [0, 1, 0], v: [[x0, hh, z0], [x1, hh, z0], [x1, hh, z1], [x0, hh, z1]], c: [b.x, hh, b.z] },
-        { n: [0, 0, 1], v: [[x0, 0, z1], [x1, 0, z1], [x1, hh, z1], [x0, hh, z1]], c: [b.x, hh / 2, z1] },
-        { n: [0, 0, -1], v: [[x1, 0, z0], [x0, 0, z0], [x0, hh, z0], [x1, hh, z0]], c: [b.x, hh / 2, z0] },
-        { n: [1, 0, 0], v: [[x1, 0, z1], [x1, 0, z0], [x1, hh, z0], [x1, hh, z1]], c: [x1, hh / 2, b.z] },
-        { n: [-1, 0, 0], v: [[x0, 0, z0], [x0, 0, z1], [x0, hh, z1], [x0, hh, z0]], c: [x0, hh / 2, b.z] }
+        { n: [0, 0, 1], v: [[x0, y0, z1], [x1, y0, z1], [x1, hh, z1], [x0, hh, z1]], c: [b.x, (y0 + hh) / 2, z1] },
+        { n: [0, 0, -1], v: [[x1, y0, z0], [x0, y0, z0], [x0, hh, z0], [x1, hh, z0]], c: [b.x, (y0 + hh) / 2, z0] },
+        { n: [1, 0, 0], v: [[x1, y0, z1], [x1, y0, z0], [x1, hh, z0], [x1, hh, z1]], c: [x1, (y0 + hh) / 2, b.z] },
+        { n: [-1, 0, 0], v: [[x0, y0, z0], [x0, y0, z1], [x0, hh, z1], [x0, hh, z0]], c: [x0, (y0 + hh) / 2, b.z] }
       ];
       faces.forEach(function (f) {
         var vx = C.px - f.c[0], vy = C.py - f.c[1], vz = C.pz - f.c[2];
@@ -494,9 +531,11 @@
     items.forEach(function (it) {
       if (it.k === "f") {
         var b = it.b; poly(it.pts);
-        ctx.fillStyle = it.top ? shade(b.col, 0.55, .95) : shade(b.col, it.lit * 0.42, .96); ctx.fill();
+        if (b.fc) ctx.fillStyle = it.top ? shade(b.fc, 1.15, .97) : shade(b.fc, 0.55 + it.lit * 0.5, .97);
+        else ctx.fillStyle = it.top ? shade(b.col, 0.55, .95) : shade(b.col, it.lit * 0.42, .96);
+        ctx.fill();
         ctx.strokeStyle = hexA(b.col, it.top ? .95 : .55); ctx.lineWidth = it.top ? 1.6 : 1; ctx.stroke();
-        if (!it.top && b.h > 1.1 && !b.mine) { // ventanitas
+        if (b.win && !it.top) { // ventanitas
           var a = it.pts[0], bb = it.pts[1], c = it.pts[2], dd = it.pts[3];
           ctx.fillStyle = hexA(b.col, .55);
           for (var r = 1; r < Math.min(6, b.h * 2); r++) for (var q = 1; q < 3; q++) {
@@ -556,7 +595,7 @@
     var top = document.getElementById("pf-top"), bot = document.getElementById("pf-bot");
     var tH = top ? top.getBoundingClientRect().bottom : 0, bH = bot ? H - bot.getBoundingClientRect().top : 0;
     OFFY = (tH - bH) / 2 * 0.6;
-    cam.dist = W < 600 ? 56 : 40;
+    cam.dist = W < 600 ? 98 : 50;
     if (labels.length) labels.forEach(function (L) { L.w = L.el.offsetWidth; L.hgt = L.el.offsetHeight; });
     hudRects();
   }
@@ -593,7 +632,7 @@
       cam.yaw -= dx * 0.0065; cam.pitch = Math.max(0.55, Math.min(1.42, cam.pitch + dy * 0.004));
     } else if (ids.length === 2) {
       var a = drag.ptrs[ids[0]], b = drag.ptrs[ids[1]], dd = Math.hypot(a[0] - b[0], a[1] - b[1]);
-      if (drag.pinch) cam.dist = Math.max(16, Math.min(70, cam.dist * drag.pinch / dd));
+      if (drag.pinch) cam.dist = Math.max(16, Math.min(120, cam.dist * drag.pinch / dd));
       drag.pinch = dd;
     }
     idleAt = performance.now();
@@ -615,7 +654,7 @@
     if (!best) { hideFicha(); document.getElementById("pf-help").hidden = true; return; }
     if (best.z) showFicha(best.z); else if (best.t) openPanel(best.t.sec); else openPanel("new");
   }
-  function onWheel(e) { e.preventDefault(); cam.dist = Math.max(16, Math.min(70, cam.dist * Math.exp(e.deltaY * 0.0012))); idleAt = performance.now(); }
+  function onWheel(e) { e.preventDefault(); cam.dist = Math.max(16, Math.min(120, cam.dist * Math.exp(e.deltaY * 0.0012))); idleAt = performance.now(); }
 
   function enterImm() {
     if (immOn) return;
