@@ -6,7 +6,7 @@
   "use strict";
   var RS = { src: "lib", id: "", a: "Lengua", g: "1.°", tema: "", tipo: "ficha", out: "", name: "" };
   window.PF_RS = RS;
-  var TIPOS = [["ficha", "Ficha de trabajo"], ["cartel", "Cartel"], ["tarjetas", "Tarjetas"], ["cartas", "Cartas de memotest"], ["lista", "Lista de control"]];
+  var TIPOS = [["ficha", "Ficha de trabajo"], ["cartel", "Cartel"], ["tarjetas", "Tarjetas"], ["cartas", "Cartas de memotest"], ["lista", "Lista de control"], ["capac", "Planilla de capacidades"], ["socio", "Habilidades socioafectivas"]];
   var ORIG = [["lib", "De la biblioteca"], ["mine", "De mis proyectos"], ["tema", "De un tema"]];
   var COLS = ["#F4DDD6", "#DCE6D8", "#E6E0EC", "#DAE6EA", "#F0E4D2"], INK = "#3b2f2a", ACC = "#8F6B5B";
 
@@ -125,7 +125,51 @@
     for (var n = 1; n <= 25; n++) h += "<tr><td " + td + ">" + n + '</td><td style="border:1px solid #888;min-width:150pt"></td>' + crit.map(function () { return "<td " + td + "></td><td " + td + "></td><td " + td + "></td>"; }).join("") + "</tr>";
     return h + "</table>" + pie(p);
   }
-  var GEN = { ficha: ficha, cartel: cartel, tarjetas: tarjetas, cartas: cartas, lista: lista };
+  /* Planillas de evaluación: columnas tomadas de «Criterios de evaluación 2026» y «Habilidades socioafectivas». */
+  var CAPAC = [
+    ["Comprensión lectora", ["Textos", "Consignas", "Enunciados", "Instrucciones", "Inferencias", "Lectura (F/V/S)"]],
+    ["Producción oral y escrita", ["Exposición oral", "Se expresa con claridad y vocabulario adecuado", "Escribe textos coherentes", "Escribe textos comprensibles con pocos errores", "Evaluación escrita", "Carpeta o cuaderno"]],
+    ["Resolución de problemas", ["Desarrolla pensamiento estratégico", "Propone soluciones", "Resuelve de forma autónoma", "Extrae datos e información"]],
+    ["Trabajo con otros", ["Participa en actividades grupales"]],
+    ["Responsabilidad", ["Trae los materiales pedidos", "Entrega la tarea completa en tiempo y forma", "Trabajo en clase", "Asistencia"]],
+    ["Conducta", ["Respeta las normas de convivencia"]],
+    ["Juicio crítico", ["Manifiesta o analiza ideas", "Cuestiona y fundamenta", "Participa en clase"]]
+  ];
+  var SOCIO = [
+    ["Autoconocimiento", "Expresa sus emociones."],
+    ["Autorregulación", "Controla sus comportamientos en diferentes situaciones."],
+    ["Automotivación", "Se esfuerza ante las dificultades."],
+    ["Empatía y compasión", "Reconoce cuándo necesita ayuda y la proporciona. Reconoce su error."],
+    ["Habilidades sociales", "Participa en clase con compromiso, creatividad y cooperación en grupo. Respeta las normas y los límites en el entorno escolar."]
+  ];
+  function cabecera(titulo, p) {
+    return '<h1 style="font-size:15pt;margin:0 0 2pt">' + titulo + '</h1><p style="margin:0 0 6pt;font-size:10pt">' + e(p.a) + " · " + e(p.g) + " grado · " + e(p.t) + " &nbsp; Docente: ……………………… &nbsp; Período: ………………</p>";
+  }
+  function capac(p) {
+    var td = 'style="border:1px solid #888;padding:0 2pt;font-size:7.5pt;text-align:center"';
+    var vt = 'style="border:1px solid #888;padding:3pt 1pt;font-size:7pt;font-weight:normal;writing-mode:vertical-rl;transform:rotate(180deg);height:100pt;vertical-align:bottom;text-align:left"';
+    var h = '<style>@page{size:A4 landscape;margin:1cm}</style>' + cabecera("CRITERIOS DE EVALUACIÓN – CAPACIDADES", p);
+    h += '<p style="margin:0 0 5pt;font-size:8pt">Registrá A (alto), M (medio) o B (bajo). En Lectura: F (fluida y autónoma), V (vacilante) o S (silábica). En Carpeta o cuaderno se miran prolijidad, caligrafía, ortografía y que esté completa.</p>';
+    h += '<table style="width:100%;border-collapse:collapse"><tr><th ' + td + ' rowspan="2">N°</th><th ' + td + ' rowspan="2">Apellido y Nombre</th>' +
+      CAPAC.map(function (c) { return "<th " + td + ' colspan="' + c[1].length + '">' + e(c[0]) + "</th>"; }).join("") + "</tr><tr>" +
+      CAPAC.map(function (c) { return c[1].map(function (x) { return "<th " + vt + ">" + e(x) + "</th>"; }).join(""); }).join("") + "</tr>";
+    var nc = CAPAC.reduce(function (n, c) { return n + c[1].length; }, 0), celdas = "";
+    for (var k = 0; k < nc; k++) celdas += "<td " + td + "></td>";
+    for (var n = 1; n <= 25; n++) h += "<tr><td " + td + ">" + n + '</td><td style="border:1px solid #888;min-width:120pt;height:11pt"></td>' + celdas + "</tr>";
+    return h + '</table><p style="margin-top:8pt;font-size:8pt;color:#777">Planilla basada en los «Criterios de evaluación 2026» (criterios generales: capacidades). Elaborada con ProyectaFormosa.</p>';
+  }
+  function socio(p) {
+    var td = 'style="border:1px solid #888;padding:2pt 3pt;font-size:8.5pt;text-align:center"';
+    var h = cabecera("HABILIDADES SOCIOAFECTIVAS", p);
+    h += '<p style="margin:0 0 5pt;font-size:8.5pt"><b>Interpersonal:</b> habilidades sociales, creatividad y cooperación. <b>Intrapersonal:</b> autoconocimiento, autorregulación, empatía y cooperación. Registrá MB (muy bueno), B (bueno) o R (regular).</p>';
+    h += '<p style="margin:0 0 6pt;font-size:8pt">' + SOCIO.map(function (s, i) { return "<b>H" + (i + 1) + ". " + e(s[0]) + ":</b> " + e(s[1]); }).join("<br>") + "</p>";
+    h += '<table style="width:100%;border-collapse:collapse"><tr><th ' + td + ' rowspan="2">N°</th><th ' + td + ' rowspan="2">Apellido y Nombre</th>' +
+      SOCIO.map(function (s, i) { return "<th " + td + ' colspan="3">H' + (i + 1) + "</th>"; }).join("") + "</tr><tr>" +
+      SOCIO.map(function () { return "<th " + td + ">MB</th><th " + td + ">B</th><th " + td + ">R</th>"; }).join("") + "</tr>";
+    for (var n = 1; n <= 25; n++) h += "<tr><td " + td + ">" + n + '</td><td style="border:1px solid #888;min-width:140pt"></td>' + SOCIO.map(function () { return "<td " + td + "></td><td " + td + "></td><td " + td + "></td>"; }).join("") + "</tr>";
+    return h + '</table><p style="margin-top:8pt;font-size:8pt;color:#777">Planilla basada en la grilla de «Habilidades socioafectivas». Elaborada con ProyectaFormosa.</p>';
+  }
+  var GEN = { ficha: ficha, cartel: cartel, tarjetas: tarjetas, cartas: cartas, lista: lista, capac: capac, socio: socio };
 
   /* ---------- salida: imprimir/PDF, Word, Canva ---------- */
   function docHTML(inner, title) {
@@ -144,7 +188,7 @@
     setTimeout(function () { URL.revokeObjectURL(u); }, 2000);
   }
   function canvaBusqueda(p) {
-    var t = { ficha: "ficha de trabajo", cartel: "afiche escolar", tarjetas: "tarjetas educativas", cartas: "memotest", lista: "lista de control" }[RS.tipo];
+    var t = { ficha: "ficha de trabajo", cartel: "afiche escolar", tarjetas: "tarjetas educativas", cartas: "memotest", lista: "lista de control", capac: "planilla de evaluación", socio: "planilla de habilidades socioemocionales" }[RS.tipo];
     return "https://www.canva.com/templates/?query=" + encodeURIComponent(t + " " + (p ? p.t : ""));
   }
 
